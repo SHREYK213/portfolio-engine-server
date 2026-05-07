@@ -11,7 +11,7 @@ export class AuthService {
     constructor(
         private readonly prisma: PrismaService,
         private readonly jwtService: JwtService,
-    ) { }
+    ) {}
 
     async signup(input: SignupInput): Promise<AuthPayload> {
         const exisitingUser = await this.prisma.user.findUnique({
@@ -69,6 +69,20 @@ export class AuthService {
                 email: user.email,
                 name: user.name ?? undefined,
             },
+        };
+    }
+
+    async me(userId: string): Promise<AuthPayload['user']>{
+        const user = await this.prisma.user.findUniqueOrThrow({
+            where: {
+                id: userId
+            },
+        });
+
+        return {
+            id: user.id,
+            email: user.email,
+            name: user.name ?? undefined,
         };
     }
 
