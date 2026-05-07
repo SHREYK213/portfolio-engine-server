@@ -23,6 +23,21 @@ describe('AppController (e2e)', () => {
     });
   });
 
+  it('/graphql health query (POST)', () => {
+    return request(app.getHttpServer())
+      .post('/graphql')
+      .send({
+        query: 'query { health }',
+      })
+      .expect(200)
+      .expect({
+        data: {
+          health: 'ok',
+        },
+      });
+  });
+
+
   afterEach(async () => {
     await app.close();
   });
