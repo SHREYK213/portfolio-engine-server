@@ -10,7 +10,4 @@ export class AuthUser {
 
   @Field({ nullable: true })
   name?: string;
-
-  @Field()
-  username: string
 }
