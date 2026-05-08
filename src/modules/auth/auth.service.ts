@@ -8,20 +8,36 @@ import { SignupInput } from './dto/signup.input';
 
 @Injectable()
 export class AuthService {
+    private mapAuthUser(user: {
+        id: string;
+        email: string;
+        name: string | null;
+        username: string;
+    }) {
+        return {
+            id: user.id,
+            email: user.email,
+            name: user.name ?? undefined,
+            username: user.username,
+        };
+    }
     constructor(
         private readonly prisma: PrismaService,
         private readonly jwtService: JwtService,
     ) {}
 
     async signup(input: SignupInput): Promise<AuthPayload> {
+        const email = input.email.toLowerCase().trim();
         const existingUser = await this.prisma.user.findFirst({
-        where: {
-            OR: [
-            { email: input.email },
-            { username: input.username }
-            ]
-        }
-        });
+            where: {
+                OR: [
+                    { email: email },
+                    ...(input.username
+                        ? [{ username: input.username }]
+                        : []),
+                ],
+            },
+            });
 
         if( existingUser){
             throw new ConflictException('User already exists');
@@ -31,7 +47,7 @@ export class AuthService {
 
         const user = await this.prisma.user.create({
             data: {
-                email: input.email,
+                email: email,
                 name: input.name,
                 passwordHash,
                 username: input.username
@@ -40,20 +56,20 @@ export class AuthService {
 
         return {
             accessToken: await this.createAccessToken(user.id),
-            user: {
-                id: user.id,
-                email: user.email,
-                name: user.name ?? undefined,
-                username: user.username
-            },
+            user: this.mapAuthUser(user)
         };
     }
 
 
     async login(input: LoginInput): Promise<AuthPayload> {
-        const user = await this.prisma.user.findUnique({
+        const identifier = input.identifier.trim().toLowerCase();
+
+        const user = await this.prisma.user.findFirst({
             where: {
-                email: input.email,
+                OR: [
+                    { email: identifier },
+                    { username: identifier },
+                ],
             },
         });
 
@@ -69,12 +85,7 @@ export class AuthService {
 
         return {
             accessToken: await this.createAccessToken(user.id),
-            user: {
-                id: user.id,
-                email: user.email,
-                name: user.name ?? undefined,
-                username: user.username
-            },
+            user: this.mapAuthUser(user)
         };
     }
 

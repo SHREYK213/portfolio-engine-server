@@ -31,6 +31,8 @@ model User {
   email             String             @unique
   username          String             @unique
   name              String?
+  refreshTokenHash  String?
+  isEmailVerified   Boolean   @default(false)
   passwordHash      String
   plan              Plan               @default(FREE)
   trialEndsAt       DateTime?
@@ -38,12 +40,15 @@ model User {
   couponRedemptions CouponRedemption[]
   createdAt         DateTime           @default(now())
   updatedAt         DateTime           @updatedAt
+
+  @@index([email])
+  @@index([username])
 }
 
 model Portfolio {
   id          String   @id @default(uuid())
   name        String
-  slug        String?  @unique
+  slug        String  @unique
   config      Json     @default("{}")
   isPublished Boolean  @default(true)
   
