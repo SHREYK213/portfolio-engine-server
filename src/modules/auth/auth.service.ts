@@ -14,13 +14,16 @@ export class AuthService {
     ) {}
 
     async signup(input: SignupInput): Promise<AuthPayload> {
-        const exisitingUser = await this.prisma.user.findUnique({
-            where: {
-                email: input.email,
-            },
+        const existingUser = await this.prisma.user.findFirst({
+        where: {
+            OR: [
+            { email: input.email },
+            { username: input.username }
+            ]
+        }
         });
 
-        if( exisitingUser){
+        if( existingUser){
             throw new ConflictException('User already exists');
         }
 
@@ -30,7 +33,8 @@ export class AuthService {
             data: {
                 email: input.email,
                 name: input.name,
-                passwordHash
+                passwordHash,
+                username: input.username
             },
         });
 
@@ -39,7 +43,8 @@ export class AuthService {
             user: {
                 id: user.id,
                 email: user.email,
-                name: user.name ?? undefined
+                name: user.name ?? undefined,
+                username: user.username
             },
         };
     }
@@ -68,6 +73,7 @@ export class AuthService {
                 id: user.id,
                 email: user.email,
                 name: user.name ?? undefined,
+                username: user.username
             },
         };
     }
@@ -83,6 +89,7 @@ export class AuthService {
             id: user.id,
             email: user.email,
             name: user.name ?? undefined,
+            username: user.username,
         };
     }
 
