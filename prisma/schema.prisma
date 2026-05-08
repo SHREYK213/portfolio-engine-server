@@ -14,12 +14,87 @@ datasource db {
   provider = "postgresql"
 }
 
-model User {
-  id           String   @id @default(uuid())
-  email        String   @unique
-  passwordHash String
-  name         String?
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+enum Plan {
+  FREE
+  PRO
+  ENTERPRISE
 }
 
+enum CouponType {
+  PERCENT
+  FULL_ACCESS
+  TRIAL_EXTENSION
+}
+
+model User {
+  id                String             @id @default(uuid())
+  email             String             @unique
+  username          String             @unique
+  name              String?
+  refreshTokenHash  String?
+  isEmailVerified   Boolean   @default(false)
+  passwordHash      String
+  plan              Plan               @default(FREE)
+  trialEndsAt       DateTime?
+  portfolios        Portfolio[]
+  couponRedemptions CouponRedemption[]
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+
+  @@index([email])
+  @@index([username])
+}
+
+model Portfolio {
+  id          String   @id @default(uuid())
+  name        String
+  slug        String  @unique
+  config      Json     @default("{}")
+  isPublished Boolean  @default(true)
+  
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+  apiKeys     ApiKey[]
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([userId])
+}
+
+model ApiKey {
+  id          String    @id @default(uuid())
+  keyHash     String    @unique
+  label       String?
+  domain      String?
+  isActive    Boolean   @default(true)
+  
+  portfolioId String
+  portfolio   Portfolio @relation(fields: [portfolioId], references: [id])
+  
+  createdAt   DateTime  @default(now())
+  lastUsedAt  DateTime?
+}
+
+model Coupon {
+  id          String             @id @default(uuid())
+  code        String             @unique
+  type        CouponType
+  value       Int?
+  maxUses     Int?
+  usedCount   Int                @default(0)
+  expiresAt   DateTime?
+  redemptions CouponRedemption[]
+  createdAt   DateTime           @default(now())
+}
+
+model CouponRedemption {
+  id         String   @id @default(uuid())
+  couponId   String
+  coupon     Coupon   @relation(fields: [couponId], references: [id])
+  userId     String
+  user       User     @relation(fields: [userId], references: [id])
+  redeemedAt DateTime @default(now())
+
+  @@unique([couponId, userId])
+}
