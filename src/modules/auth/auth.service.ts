@@ -5,6 +5,7 @@ import { PrismaService } from '../../database/prisma.service';
 import { AuthPayload } from './dto/auth-payload.object';
 import { LoginInput } from './dto/login.input';
 import { SignupInput } from './dto/signup.input';
+import { ConfigService } from '@nestjs/config';
 
 @Injectable()
 export class AuthService {
@@ -24,6 +25,7 @@ export class AuthService {
     constructor(
         private readonly prisma: PrismaService,
         private readonly jwtService: JwtService,
+        private readonly configService: ConfigService
     ) {}
 
     async signup(input: SignupInput): Promise<AuthPayload> {
@@ -54,9 +56,15 @@ export class AuthService {
             },
         });
 
+        const accessToken = await this.createAccessToken(user.id);
+        const refreshToken = await this.createRefreshToken(user.id);
+
+        await this.storeRefreshToken(user.id, refreshToken)
+
         return {
-            accessToken: await this.createAccessToken(user.id),
-            user: this.mapAuthUser(user)
+            accessToken,
+            refreshToken,
+            user: this.mapAuthUser(user),
         };
     }
 
@@ -83,8 +91,14 @@ export class AuthService {
             throw new UnauthorizedException('Invalid email or password')
         }
 
+        const accessToken = await this.createAccessToken(user.id)
+        const refreshToken = await this.createRefreshToken(user.id)
+
+        await this.storeRefreshToken(user.id, refreshToken)
+
         return {
-            accessToken: await this.createAccessToken(user.id),
+            accessToken,
+            refreshToken,
             user: this.mapAuthUser(user)
         };
     }
@@ -105,9 +119,41 @@ export class AuthService {
     }
 
     private createAccessToken(userId: string): Promise<string>{
-        return this.jwtService.signAsync({
-            sub: userId
+        return this.jwtService.signAsync(
+            {
+                sub: userId
+            },
+            {
+                secret: this.configService.getOrThrow<string>('JWT_REFRESH_SECRET'),
+                expiresIn: '15m',
+            },
+        )
+    }
+
+    private createRefreshToken(userId: string): Promise<string> {
+        return this.jwtService.signAsync(
+            {
+                sub: userId,
+            },
+            {
+                secret: this.configService.getOrThrow<string>('JWT_REFRESH_SECRET'),
+                expiresIn: '7d',
+            },
+        );
+    }
+
+    private async storeRefreshToken(userId:string, refreshToken:string): Promise<void>{
+        const refreshTokenHash = await bcrypt.hash(refreshToken, 10)
+        
+        await this.prisma.user.update({
+            where: {
+                id: userId,
+            },
+            data: {
+                refreshTokenHash,
+            }
         })
     }
+
 
 }
